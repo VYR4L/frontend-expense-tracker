@@ -1,6 +1,6 @@
 # 💰 Expense Tracker - Painel de Controle de Gastos Pessoais
 
-Um painel moderno e completo para gerenciamento de gastos pessoais, desenvolvido com React, TypeScript e Material-UI.
+Um painel moderno e completo para gerenciamento de gastos pessoais, desenvolvido com React, TypeScript e Material-UI. Você pode testar [aqui](https://vyral-expense-tracker.netlify.app/dashboard)
 
 ## 🚀 Tecnologias
 
