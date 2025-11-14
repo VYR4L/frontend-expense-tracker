@@ -125,18 +125,24 @@ export const Goals: React.FC = () => {
   };
 
   const onSubmit = (data: GoalFormData) => {
+    const goalData = {
+      ...data,
+      targetAmount: Number(data.targetAmount),
+      currentAmount: Number(data.currentAmount),
+    };
+    
     if (editingGoal) {
       setGoals((prev) =>
         prev.map((g) =>
           g.id === editingGoal.id
-            ? { ...data, id: g.id }
+            ? { ...goalData, id: g.id }
             : g
         )
       );
       showSnackbar('Meta atualizada com sucesso!', 'success');
     } else {
       const newGoal: Goal = {
-        ...data,
+        ...goalData,
         id: Date.now().toString(),
       };
       setGoals((prev) => [newGoal, ...prev]);
@@ -288,17 +294,18 @@ export const Goals: React.FC = () => {
               </ListItemIcon>
               <ListItemText
                 primary={goal.name}
+                secondaryTypographyProps={{ component: 'div' }}
                 secondary={
                   <Box sx={{ mt: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                       <Chip
-                        label={`Alvo: R$ ${goal.targetAmount.toFixed(2)}`}
+                        label={`Alvo: R$ ${Number(goal.targetAmount).toFixed(2)}`}
                         size="small"
-                        color={goal.currentAmount >= goal.targetAmount ? 'success' : 'default'}
+                        color={Number(goal.currentAmount) >= Number(goal.targetAmount) ? 'success' : 'default'}
                         variant='outlined'
                       />
                       <Chip
-                        label={`Atual: R$ ${goal.currentAmount.toFixed(2)}`}
+                        label={`Atual: R$ ${Number(goal.currentAmount).toFixed(2)}`}
                         size="small"
                         color="info"
                         variant='outlined'
@@ -309,14 +316,14 @@ export const Goals: React.FC = () => {
                       <Box sx={{ width: '100%', mr: 1 }}>
                         <LinearProgress
                           variant="determinate"
-                          value={Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)}
+                          value={Math.min((Number(goal.currentAmount) / Number(goal.targetAmount)) * 100, 100)}
                           sx={{
                             height: 8,
                             borderRadius: 4,
                             backgroundColor: 'action.hover',
                             '& .MuiLinearProgress-bar': {
                               borderRadius: 4,
-                              backgroundColor: goal.currentAmount >= goal.targetAmount
+                              backgroundColor: Number(goal.currentAmount) >= Number(goal.targetAmount)
                                 ? 'success.main'
                                 : goal.color,
                             },
@@ -328,7 +335,7 @@ export const Goals: React.FC = () => {
                         color="text.secondary"
                         sx={{ minWidth: 40, fontWeight: 600 }}
                       >
-                        {Math.min(((goal.currentAmount / goal.targetAmount) * 100), 100).toFixed(0)}%
+                        {Math.min(((Number(goal.currentAmount) / Number(goal.targetAmount)) * 100), 100).toFixed(0)}%
                       </Typography>
                     </Box>
                   </Box>
