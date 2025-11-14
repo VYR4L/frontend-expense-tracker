@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useThemeMode } from '../../context/ThemeContext';
+import favIcon from '../../assets/img/favicon.ico';
 
 const DRAWER_WIDTH = 240;
 
@@ -71,8 +72,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ onLogout }) => {
     <>
       <Toolbar>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <img src={favIcon} alt="Logo" style={{ width: 32, height: 32 }} />
           <Typography variant="h6" fontWeight={700} color="primary">
-            💰 Expense Tracker
+             Expense Tracker
           </Typography>
         </Box>
       </Toolbar>
@@ -161,8 +163,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ onLogout }) => {
             >
               <MenuIcon />
             </IconButton>
+            <img src={favIcon} alt="Logo" style={{ width: 32, height: 32 }} />
             <Typography variant="h6" noWrap component="div">
-              💰 Expense Tracker
+              Expense Tracker
             </Typography>
           </Toolbar>
         </AppBar>
