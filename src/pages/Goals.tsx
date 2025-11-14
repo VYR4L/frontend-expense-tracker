@@ -24,6 +24,7 @@ import {
   Chip,
   Tooltip,
   InputAdornment,
+  LinearProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -288,19 +289,48 @@ export const Goals: React.FC = () => {
               <ListItemText
                 primary={goal.name}
                 secondary={
-                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                    <Chip
-                      label={`Alvo: R$ ${goal.targetAmount.toFixed(2)}`}
-                      size="small"
-                      color={goal.currentAmount >= goal.targetAmount ? 'success' : 'default'}
-                      variant='outlined'
-                    />
-                    <Chip
-                      label={`Atual: R$ ${goal.currentAmount.toFixed(2)}`}
-                      size="small"
-                      color="info"
-                      variant='outlined'
-                    />
+                  <Box sx={{ mt: 0.5 }}>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                      <Chip
+                        label={`Alvo: R$ ${goal.targetAmount.toFixed(2)}`}
+                        size="small"
+                        color={goal.currentAmount >= goal.targetAmount ? 'success' : 'default'}
+                        variant='outlined'
+                      />
+                      <Chip
+                        label={`Atual: R$ ${goal.currentAmount.toFixed(2)}`}
+                        size="small"
+                        color="info"
+                        variant='outlined'
+                      />
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: '100%', mr: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'action.hover',
+                            '& .MuiLinearProgress-bar': {
+                              borderRadius: 4,
+                              backgroundColor: goal.currentAmount >= goal.targetAmount
+                                ? 'success.main'
+                                : goal.color,
+                            },
+                          }}
+                        />
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ minWidth: 40, fontWeight: 600 }}
+                      >
+                        {Math.min(((goal.currentAmount / goal.targetAmount) * 100), 100).toFixed(0)}%
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               />
