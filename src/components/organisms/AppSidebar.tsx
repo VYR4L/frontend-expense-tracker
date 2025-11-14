@@ -24,6 +24,7 @@ import {
   Brightness7 as LightModeIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
+  Flag as GoalIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useThemeMode } from '../../context/ThemeContext';
@@ -44,6 +45,7 @@ const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Transações', icon: <ReceiptIcon />, path: '/transactions' },
   { text: 'Categorias', icon: <CategoryIcon />, path: '/categories' },
+  { text: 'Metas', icon: <GoalIcon />, path: '/goals' },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ onLogout }) => {

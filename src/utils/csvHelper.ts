@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { format } from 'date-fns';
-import type { Transaction, Category } from '../types';
+import type { Transaction, Category, Goal } from '../types';
 
 /**
  * Exporta transações para um arquivo CSV
@@ -28,11 +28,11 @@ export const exportTransactionsToCSV = (transactions: Transaction[], filename = 
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', `${filename}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -60,11 +60,11 @@ export const exportCategoriesToCSV = (categories: Category[], filename = 'catego
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', `${filename}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -74,6 +74,40 @@ interface ImportResult<T> {
   success: boolean;
   data?: T[];
   errors?: string[];
+}
+
+/**
+ * Exporta categorias para um arquivo CSV
+ * @param categories - Array de categorias a serem exportadas
+ * @param filename - Nome do arquivo (sem extensão)
+ */
+export const exportGoalsToCSV = (goals: Goal[], filename = 'metas'): void => {
+  const csvData = goals.map((goal) => ({
+    Nome: goal.name,
+    ValorAlvo: goal.targetAmount.toFixed(2),
+    ValorAtual: goal.currentAmount.toFixed(2),
+    Ícone: goal.icon,
+    Cor: goal.color,
+    Categoria: goal.category,
+  }));
+
+  const csv = Papa.unparse(csvData, {
+    quotes: true,
+    delimiter: ',',
+    header: true,
+  });
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filename}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+  link.style.visibility = 'hidden';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /**
@@ -216,3 +250,69 @@ export const importCategoriesFromCSV = (file: File): Promise<ImportResult<Omit<C
     });
   });
 };
+
+/**
+ * Importa metas de um arquivo CSV
+ * @param file - Arquivo CSV
+ * @returns Promise com resultado da importação
+ */
+export const importGoalsFromCSV = (file: File): Promise<ImportResult<Omit<Goal, 'id'>>> => {
+  return new Promise((resolve) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const errors: string[] = [];
+        const data: Omit<Goal, 'id'>[] = [];
+
+        results.data.forEach((row: any, index: number) => {
+          try {
+            // Validar campos obrigatórios
+            if (!row['Nome'] || !row['ValorAlvo'] || !row['ValorAtual'] || !row['Categoria']) {
+              errors.push(`Linha ${index + 2}: Campos obrigatórios faltando`);
+              return;
+            }
+
+            // Converter valores
+            const targetAmount = parseFloat(row['ValorAlvo'].replace(',', '.'));
+            const currentAmount = parseFloat(row['ValorAtual'].replace(',', '.'));
+
+            if (isNaN(targetAmount) || isNaN(currentAmount)) {
+              errors.push(`Linha ${index + 2}: Valores inválidos`);
+              return;
+            }
+
+            data.push({
+              name: row['Nome'],
+              targetAmount,
+              currentAmount,
+              icon: row['Ícone'] || row['Icone'] || '',
+              color: row['Cor'] || '#1976d2',
+              category: row['Categoria'],
+            });
+          } catch (error) {
+            errors.push(`Linha ${index + 2}: Erro ao processar dados`);
+          }
+        });
+
+        if (errors.length > 0) {
+          resolve({
+            success: false,
+            errors,
+          });
+        } else {
+          resolve({
+            success: true,
+            data,
+          });
+        }
+      },
+      error: () => {
+        resolve({
+          success: false,
+          errors: ['Erro ao ler o arquivo CSV'],
+        });
+      }
+    });
+  });
+}

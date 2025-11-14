@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Categories } from './pages/Categories';
+import { Goals } from './pages/Goals';
 
 // Componente de proteção de rotas
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,6 +77,17 @@ function App() {
               <PrivateRoute>
                 <MainLayout>
                   <Categories />
+                </MainLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/goals"
+            element={
+              <PrivateRoute>
+                <MainLayout>
+                  <Goals />
                 </MainLayout>
               </PrivateRoute>
             }
