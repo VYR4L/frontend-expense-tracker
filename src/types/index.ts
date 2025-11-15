@@ -47,3 +47,17 @@ export interface DashboardMetrics {
   monthlyIncome: number;
   totalExpenses: number;
 }
+
+export interface HeatmapData {
+  name: string;
+  data: { x: string; y: number }[];
+}
+
+export interface ForecastData {
+  totalSpent: number;
+  dailyAverage: number;
+  daysRemaining: number;
+  projectedTotal: number;
+  totalIncome: number;
+  projectedBalance: number;
+}

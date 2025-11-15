@@ -25,6 +25,7 @@ import {
   Logout as LogoutIcon,
   Menu as MenuIcon,
   Flag as GoalIcon,
+  CalendarViewMonth as HeatmapIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useThemeMode } from '../../context/ThemeContext';
@@ -47,6 +48,7 @@ const menuItems: MenuItem[] = [
   { text: 'Transações', icon: <ReceiptIcon />, path: '/transactions' },
   { text: 'Categorias', icon: <CategoryIcon />, path: '/categories' },
   { text: 'Metas', icon: <GoalIcon />, path: '/goals' },
+  { text: 'Análises', icon: <HeatmapIcon />, path: '/analysis' },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ onLogout }) => {
