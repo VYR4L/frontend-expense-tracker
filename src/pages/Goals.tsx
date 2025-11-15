@@ -193,22 +193,22 @@ export const Goals: React.FC = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        justifyContent: 'space-between',
-        alignItems: { xs: 'flex-start', md: 'center' },
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' },
         gap: 2,
-        mb: 3
+        mb: 3 
       }}>
-        <Typography variant='h4' fontWeight={700}>
+        <Typography variant="h4" fontWeight={700}>
           Metas Financeiras
         </Typography>
 
-        <Box sx={{
-          display: 'flex',
+        <Box sx={{ 
+          display: 'flex', 
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: 1,
+          gap: 1 
         }}>
           <Button
             variant="outlined"
@@ -223,7 +223,7 @@ export const Goals: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<UploadIcon />}
-            disabled={goals.length === 0}
+            component="label"
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             Importar CSV
@@ -236,15 +236,13 @@ export const Goals: React.FC = () => {
           </Button>
 
           <Button
-            variant="outlined"
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
-            disabled={goals.length === 0}
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             Nova Meta
           </Button>
-
         </Box>
       </Box>
       <Paper>
@@ -297,18 +295,20 @@ export const Goals: React.FC = () => {
                 secondaryTypographyProps={{ component: 'div' }}
                 secondary={
                   <Box sx={{ mt: 0.5 }}>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    <Box sx={{ display: 'flex', flexDirection: {xs: 'column', md:'row', lg:'row'}, gap: 0.5, mb: 1 }}>
                       <Chip
                         label={`Alvo: R$ ${Number(goal.targetAmount).toFixed(2)}`}
                         size="small"
                         color={Number(goal.currentAmount) >= Number(goal.targetAmount) ? 'success' : 'default'}
                         variant='outlined'
+                        sx={{ width: 'fit-content' }}
                       />
                       <Chip
                         label={`Atual: R$ ${Number(goal.currentAmount).toFixed(2)}`}
                         size="small"
                         color="info"
                         variant='outlined'
+                        sx={{ width: 'fit-content' }}
                       />
                     </Box>
                     
