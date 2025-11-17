@@ -11,7 +11,7 @@ type Goal = {
 }
 
 export const createGoal = async (goal: Goal, ) => {
-  const response = await axios.post(`${URL}/goals`, goal, {
+  const response = await axios.post(`${URL}/goals/`, goal, {
     headers: authHeader()
   });
   return response.data;

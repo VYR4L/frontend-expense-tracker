@@ -10,7 +10,7 @@ type User = {
 };
 
 export const createUser = async (user: User) => {
-  const response = await axios.post(`${URL}/users`, user);
+  const response = await axios.post(`${URL}/users/`, user);
   return response.data;
 }
 

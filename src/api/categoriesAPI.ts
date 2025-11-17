@@ -9,14 +9,14 @@ type Category = {
 };
 
 export const createCategory = async (category: Category, ) => {
-  const response = await axios.post(`${URL}/categories`, category, {
+  const response = await axios.post(`${URL}/categories/`, category, {
     headers: authHeader()
   });
   return response.data;
 }
 
 export const getUserCategories = async () => {
-  const response = await axios.get(`${URL}/categories`, {
+  const response = await axios.get(`${URL}/categories/`, {
     headers: authHeader()
   });
   return response.data;

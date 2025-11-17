@@ -11,7 +11,7 @@ type TransactionAPI = {
 };
 
 export const createTransaction = async (transaction: TransactionAPI, ) => {
-  const response = await axios.post(`${URL}/transactions`, transaction, {
+  const response = await axios.post(`${URL}/transactions/`, transaction, {
     headers: authHeader()
   });
   return response.data;
