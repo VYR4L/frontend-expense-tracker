@@ -25,6 +25,8 @@ export const Transactions: React.FC = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<number | null>(null);
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const [rowCount, setRowCount] = useState(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -43,10 +45,7 @@ export const Transactions: React.FC = () => {
         const user = await getCurrentUser();
         setUserId(user.id);
         
-        const [transactionsData, categoriesData] = await Promise.all([
-          getPaginatedUserTransactions(1, 10),
-          getUserCategories()
-        ]);
+        const categoriesData = await getUserCategories();
         
         // Mapear categorias da API
         const mappedCategories = categoriesData.map((cat: any) => ({
@@ -57,24 +56,10 @@ export const Transactions: React.FC = () => {
           type: cat.category_type as 'income' | 'expense',
         }));
         
-        // A API pode retornar diretamente um array ou um objeto com items
-        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
-        
-        const processedTransactions = transactionsList.map((t: any) => ({
-          id: t.id.toString(),
-          description: t.description,
-          amount: t.amount,
-          type: t.transaction_type || t.type,
-          category: mappedCategories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
-          date: new Date(t.date),
-          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
-        }));
-        
-        setTransactions(processedTransactions);
         setCategories(mappedCategories);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        showSnackbar('Erro ao carregar transações', 'error');
+        showSnackbar('Erro ao carregar dados iniciais', 'error');
       } finally {
         setLoading(false);
       }
@@ -82,6 +67,42 @@ export const Transactions: React.FC = () => {
     
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!userId) return;
+      
+      try {
+        setLoading(true);
+        const page = paginationModel.page + 1; // API usa 1-indexed
+        const transactionsData = await getPaginatedUserTransactions(page, paginationModel.pageSize);
+        
+        // A API pode retornar diretamente um array ou um objeto com items
+        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
+        const total = transactionsData?.total || transactionsList.length;
+        
+        const processedTransactions = transactionsList.map((t: any) => ({
+          id: t.id.toString(),
+          description: t.description,
+          amount: t.amount,
+          type: t.transaction_type || t.type,
+          category: categories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
+          date: new Date(t.date),
+          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
+        }));
+        
+        setTransactions(processedTransactions);
+        setRowCount(total);
+      } catch (error) {
+        console.error('Erro ao carregar transações:', error);
+        showSnackbar('Erro ao carregar transações', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTransactions();
+  }, [paginationModel, userId, categories]);
 
   const handleOpenModal = () => {
     setEditingTransaction(null);
@@ -279,6 +300,10 @@ export const Transactions: React.FC = () => {
         transactions={transactions}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        loading={loading}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        rowCount={rowCount}
       />
 
       <TransactionModal

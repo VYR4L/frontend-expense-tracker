@@ -14,6 +14,9 @@ interface TransactionTableProps {
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
   loading?: boolean;
+  paginationModel?: { page: number; pageSize: number };
+  onPaginationModelChange?: (model: { page: number; pageSize: number }) => void;
+  rowCount?: number;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = ({
@@ -21,6 +24,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   onEdit,
   onDelete,
   loading = false,
+  paginationModel,
+  onPaginationModelChange,
+  rowCount,
 }) => {
   const columns: GridColDef[] = [
     {
@@ -127,10 +133,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         columns={columns}
         loading={loading}
         pageSizeOptions={[10, 25, 50, 100]}
+        paginationModel={paginationModel}
+        onPaginationModelChange={onPaginationModelChange}
+        rowCount={rowCount}
+        paginationMode="server"
         initialState={{
-          pagination: {
-            paginationModel: { pageSize: 10 },
-          },
           sorting: {
             sortModel: [{ field: 'date', sort: 'desc' }],
           },
