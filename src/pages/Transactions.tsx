@@ -70,29 +70,26 @@ export const Transactions: React.FC = () => {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!userId) return;
+      if (!userId || categories.length === 0) return;
       
       try {
         setLoading(true);
         const page = paginationModel.page + 1; // API usa 1-indexed
         const transactionsData = await getPaginatedUserTransactions(page, paginationModel.pageSize);
         
-        // A API pode retornar diretamente um array ou um objeto com items
-        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
-        const total = transactionsData?.total || transactionsList.length;
-        
-        const processedTransactions = transactionsList.map((t: any) => ({
+        // Mapear transações
+        const processedTransactions = transactionsData.items.map((t: any) => ({
           id: t.id.toString(),
           description: t.description,
           amount: t.amount,
-          type: t.transaction_type || t.type,
+          type: t.transaction_type,
           category: categories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
           date: new Date(t.date),
-          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
+          createdAt: new Date(t.created_at),
         }));
         
         setTransactions(processedTransactions);
-        setRowCount(total);
+        setRowCount(transactionsData.total);
       } catch (error) {
         console.error('Erro ao carregar transações:', error);
         showSnackbar('Erro ao carregar transações', 'error');
@@ -135,26 +132,13 @@ export const Transactions: React.FC = () => {
       
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, apiData);
-        setTransactions((prev) =>
-          prev.map((t) =>
-            t.id === editingTransaction.id
-              ? { ...transactionData, id: t.id, createdAt: t.createdAt }
-              : t
-          )
-        );
+        // Recarregar a página atual após editar
+        setPaginationModel({ ...paginationModel });
         showSnackbar('Transação atualizada com sucesso!', 'success');
       } else {
-        const newTrans = await createTransaction(apiData);
-        const newTransaction: Transaction = {
-          id: newTrans.id.toString(),
-          description: newTrans.description,
-          amount: newTrans.amount,
-          type: newTrans.transaction_type || transactionData.type,
-          category: transactionData.category,
-          date: new Date(newTrans.date),
-          createdAt: new Date(newTrans.created_at),
-        };
-        setTransactions((prev) => [newTransaction, ...prev]);
+        await createTransaction(apiData);
+        // Voltar para primeira página após criar
+        setPaginationModel({ page: 0, pageSize: paginationModel.pageSize });
         showSnackbar('Transação criada com sucesso!', 'success');
       }
       handleCloseModal();
@@ -172,7 +156,8 @@ export const Transactions: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteTransaction(id);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      // Recarregar a página atual após deletar
+      setPaginationModel({ ...paginationModel });
       showSnackbar('Transação excluída com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao excluir transação:', error);
