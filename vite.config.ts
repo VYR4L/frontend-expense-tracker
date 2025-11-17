@@ -21,9 +21,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       '__BACKEND_URL__': mode === 'production'
-        ? JSON.stringify(env.BACKEND_URL)
-        //? JSON.stringify('BACKEND_URL_PLACEHOLDER__') //TODO: ajustar 'BACKEND_URL_PLACEHOLDER__'
-        : JSON.stringify(env.BACKEND_URL || 'http://localhost:3001')
+        ? JSON.stringify(env.VITE_BACKEND_URL || env.BACKEND_URL || '')
+        : JSON.stringify(env.VITE_BACKEND_URL || env.BACKEND_URL || 'http://localhost:8000')
     },
     build: {
       sourcemap: mode !== 'production'
