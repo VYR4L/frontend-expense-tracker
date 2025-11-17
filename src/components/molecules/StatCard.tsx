@@ -10,6 +10,7 @@ interface StatCardProps {
   type?: TransactionType;
   icon?: React.ReactNode;
   subtitle?: string;
+  isCount?: boolean;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -18,6 +19,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   type,
   icon,
   subtitle,
+  isCount = false,
 }) => {
   return (
     <motion.div
@@ -45,13 +47,19 @@ export const StatCard: React.FC<StatCardProps> = ({
             )}
           </Box>
           
-          <CurrencyText
-            value={value}
-            type={type}
-            variant="h4"
-            colorized={!!type}
-            sx={{ mb: 0.5 }}
-          />
+          {isCount ? (
+            <Typography variant="h4" fontWeight={500} sx={{ mb: 0.5 }}>
+              {value}
+            </Typography>
+          ) : (
+            <CurrencyText
+              value={value}
+              type={type}
+              variant="h4"
+              colorized={!!type}
+              sx={{ mb: 0.5 }}
+            />
+          )}
           
           {subtitle && (
             <Typography variant="caption" color="text.secondary">

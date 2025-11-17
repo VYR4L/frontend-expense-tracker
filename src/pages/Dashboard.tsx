@@ -1,11 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { Container, Box, Paper, Typography } from '@mui/material';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Container, Box, Paper, Typography, CircularProgress } from '@mui/material';
 import {
   AccountBalanceWallet,
   TrendingDown,
   TrendingUp,
   Receipt,
 } from '@mui/icons-material';
+import { getPaginatedUserTransactions } from '../api/transactionsAPI';
+import { getUserCategories } from '../api/categoriesAPI';
+import { getCurrentUser } from '../api/usersAPI';
 import {
   PieChart,
   Pie,
@@ -24,90 +27,101 @@ import { StatCard } from '../components/molecules/StatCard';
 import { FilterBar } from '../components/molecules/FilterBar';
 import type { Transaction, Category } from '../types';
 
-// Mock data - em produção, viria de uma API ou Context
-const MOCK_CATEGORIES: Category[] = [
-  { id: '1', name: 'Alimentação', icon: 'restaurant', color: '#FF6384', type: 'expense' },
-  { id: '2', name: 'Transporte', icon: 'directions_car', color: '#36A2EB', type: 'expense' },
-  { id: '3', name: 'Moradia', icon: 'home', color: '#FFCE56', type: 'expense' },
-  { id: '4', name: 'Saúde', icon: 'local_hospital', color: '#4BC0C0', type: 'expense' },
-  { id: '5', name: 'Lazer', icon: 'theaters', color: '#9966FF', type: 'expense' },
-  { id: '6', name: 'Salário', icon: 'account_balance', color: '#4CAF50', type: 'income' },
-];
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    description: 'Supermercado',
-    amount: 350.50,
-    type: 'expense',
-    category: 'Alimentação',
-    date: new Date(2025, 10, 5),
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    description: 'Uber',
-    amount: 25.00,
-    type: 'expense',
-    category: 'Transporte',
-    date: new Date(2025, 10, 7),
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    description: 'Salário',
-    amount: 5000.00,
-    type: 'income',
-    category: 'Salário',
-    date: new Date(2025, 10, 1),
-    createdAt: new Date(),
-  },
-  {
-    id: '4',
-    description: 'Aluguel',
-    amount: 1500.00,
-    type: 'expense',
-    category: 'Moradia',
-    date: new Date(2025, 10, 10),
-    createdAt: new Date(),
-  },
-  {
-    id: '5',
-    description: 'Cinema',
-    amount: 60.00,
-    type: 'expense',
-    category: 'Lazer',
-    date: new Date(2025, 10, 12),
-    createdAt: new Date(),
-  },
-];
 
 const MONTHS = [
-  'Janeiro 2025',
-  'Fevereiro 2025',
-  'Março 2025',
-  'Abril 2025',
-  'Maio 2025',
-  'Junho 2025',
-  'Julho 2025',
-  'Agosto 2025',
-  'Setembro 2025',
-  'Outubro 2025',
-  'Novembro 2025',
-  'Dezembro 2025',
+  { full: 'Janeiro', abbr: 'Jan' },
+  { full: 'Fevereiro', abbr: 'Fev' },
+  { full: 'Março', abbr: 'Mar' },
+  { full: 'Abril', abbr: 'Abr' },
+  { full: 'Maio', abbr: 'Mai' },
+  { full: 'Junho', abbr: 'Jun' },
+  { full: 'Julho', abbr: 'Jul' },
+  { full: 'Agosto', abbr: 'Ago' },
+  { full: 'Setembro', abbr: 'Set' },
+  { full: 'Outubro', abbr: 'Out' },
+  { full: 'Novembro', abbr: 'Nov' },
+  { full: 'Dezembro', abbr: 'Dez' },
 ];
 
 export const Dashboard: React.FC = () => {
-  const [selectedMonth, setSelectedMonth] = useState('Novembro 2025');
+  // Define o mês atual como valor inicial, compatível com o array months
+  const currentYear = new Date().getFullYear();
+  const currentMonthIdx = new Date().getMonth();
+  const currentMonthLabel = `${MONTHS[currentMonthIdx].full} ${currentYear}`;
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthLabel);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [_, setUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Buscar usuário atual
+        const user = await getCurrentUser();
+        setUserId(user.id);
+        
+        // Buscar dados em paralelo
+        const [transactionsData, categoriesData] = await Promise.all([
+          getPaginatedUserTransactions(1, 100),
+          getUserCategories()
+        ]);
+        
+        // Mapear categorias
+        const mappedCategories = categoriesData.map((cat: any) => ({
+          id: cat.id.toString(),
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          type: cat.category_type as 'income' | 'expense',
+        }));
+        
+        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
+        
+        const processedTransactions = transactionsList.map((t: any) => ({
+          id: t.id.toString(),
+          description: t.description,
+          amount: t.amount,
+          type: t.transaction_type || t.type,
+          category: mappedCategories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
+          date: new Date(t.date),
+          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
+        }));
+        
+        setTransactions(processedTransactions);
+        setCategories(mappedCategories);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  const selectedMonthIdx = useMemo(() => {
+    const normalized = selectedMonth.replace(' 2025', '').trim();
+    return MONTHS.findIndex(m => m.full === normalized);
+  }, [selectedMonth]);
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const isMonth = t.date.getMonth() === selectedMonthIdx && t.date.getFullYear() === 2025;
+      const isCategory = selectedCategory ? t.category === selectedCategory : true;
+      return isMonth && isCategory;
+    });
+  }, [transactions, selectedMonthIdx, selectedCategory]);
 
   // Calcular métricas
   const metrics = useMemo(() => {
-    const income = MOCK_TRANSACTIONS
+    const income = filteredTransactions
       .filter((t) => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const expenses = MOCK_TRANSACTIONS
+    const expenses = filteredTransactions
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
@@ -115,19 +129,19 @@ export const Dashboard: React.FC = () => {
       currentBalance: income - expenses,
       monthlyExpenses: expenses,
       monthlyIncome: income,
-      transactionCount: MOCK_TRANSACTIONS.length,
+      transactionCount: filteredTransactions.length,
     };
-  }, []);
+  }, [filteredTransactions]);
 
   // Dados para o gráfico de pizza (Gastos por Categoria)
   const pieChartData = useMemo(() => {
     const categoryTotals: Record<string, { value: number; color: string }> = {};
 
-    MOCK_TRANSACTIONS
+    filteredTransactions
       .filter((t) => t.type === 'expense')
       .forEach((transaction) => {
         if (!categoryTotals[transaction.category]) {
-          const category = MOCK_CATEGORIES.find((c) => c.name === transaction.category);
+          const category = categories.find((c) => c.name === transaction.category);
           categoryTotals[transaction.category] = {
             value: 0,
             color: category?.color || '#999999',
@@ -141,16 +155,44 @@ export const Dashboard: React.FC = () => {
       value: data.value,
       color: data.color,
     }));
-  }, []);
+  }, [filteredTransactions, categories]);
 
   // Dados para o gráfico de linha (Evolução Mensal)
-  const lineChartData = [
-    { month: 'Jul', income: 5000, expense: 3500 },
-    { month: 'Ago', income: 5200, expense: 3800 },
-    { month: 'Set', income: 5000, expense: 3200 },
-    { month: 'Out', income: 5500, expense: 4000 },
-    { month: 'Nov', income: 5000, expense: 1935.5 },
-  ];
+  const lineChartData = useMemo(() => {
+    // Agrupa transações por mês/ano
+    const monthly: Record<string, { income: number; expense: number }> = {};
+    transactions.forEach((t) => {
+      const monthIdx = t.date.getMonth();
+      const year = t.date.getFullYear();
+      const key = `${monthIdx}-${year}`;
+      if (!monthly[key]) {
+        monthly[key] = { income: 0, expense: 0 };
+      }
+      if (t.type === 'income') {
+        monthly[key].income += t.amount;
+      } else if (t.type === 'expense') {
+        monthly[key].expense += t.amount;
+      }
+    });
+    // Gera os dados para os últimos 12 meses do ano atual
+    const currentYear = new Date().getFullYear();
+    return MONTHS.map((m, idx) => {
+      const key = `${idx}-${currentYear}`;
+      return {
+        month: m.abbr,
+        income: monthly[key]?.income || 0,
+        expense: monthly[key]?.expense || 0,
+      };
+    });
+  }, [transactions]);
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -163,14 +205,15 @@ export const Dashboard: React.FC = () => {
         onMonthChange={setSelectedMonth}
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
-        categories={MOCK_CATEGORIES}
-        months={MONTHS}
+        categories={categories}
+        months={MONTHS.map(m => `${m.full} ${currentYear}`)}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, mb: 3 }}>
         <StatCard
           title="Saldo Atual"
           value={metrics.currentBalance}
+          type={metrics.currentBalance >= 0 ? 'income' : 'expense'}
           icon={<AccountBalanceWallet />}
           subtitle="Diferença entre entradas e saídas"
         />
@@ -196,6 +239,7 @@ export const Dashboard: React.FC = () => {
           value={metrics.transactionCount}
           icon={<Receipt />}
           subtitle="Total de transações"
+          isCount
         />
       </Box>
 
@@ -207,38 +251,44 @@ export const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Paper sx={{ p: 3, height: 400 }}>
+            <Paper sx={{ p: 3, height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Gastos por Categoria
               </Typography>
-              <ResponsiveContainer width="100%" height="90%">
-                <PieChart>
-                  <Pie
-                    data={pieChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`
-                    }
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) =>
-                      new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(value)
-                    }
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {pieChartData.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 8 }}>
+                  Não houveram gastos no mês/categoria selecionado.
+                </Typography>
+              ) : (
+                <ResponsiveContainer width="100%" height="90%">
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) =>
+                        new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(value)
+                      }
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </Paper>
           </motion.div>
         </Box>
@@ -250,40 +300,46 @@ export const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Paper sx={{ p: 3, height: 400 }}>
+            <Paper sx={{ p: 3, height: 400, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Evolução Mensal
               </Typography>
-              <ResponsiveContainer width="100%" height="90%">
-                <LineChart data={lineChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) =>
-                      new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(value)
-                    }
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="income"
-                    stroke="#4CAF50"
-                    strokeWidth={2}
-                    name="Entradas"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="expense"
-                    stroke="#f44336"
-                    strokeWidth={2}
-                    name="Saídas"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {lineChartData.every(d => d.income === 0 && d.expense === 0) ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 8 }}>
+                  Não houveram transações no ano para o mês/categoria selecionado.
+                </Typography>
+              ) : (
+                <ResponsiveContainer width="100%" height="90%">
+                  <LineChart data={lineChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) =>
+                        new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(value)
+                      }
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="income"
+                      stroke="#4CAF50"
+                      strokeWidth={2}
+                      name="Entradas"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="expense"
+                      stroke="#f44336"
+                      strokeWidth={2}
+                      name="Saídas"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </Paper>
           </motion.div>
         </Box>

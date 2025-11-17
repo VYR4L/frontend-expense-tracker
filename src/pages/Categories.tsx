@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getUserCategories, createCategory, updateCategory, deleteCategory } from '../api/categoriesAPI';
 import {
   Container,
   Typography,
@@ -23,6 +24,7 @@ import {
   Alert,
   Chip,
   Tooltip,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -43,24 +45,16 @@ interface CategoryFormData {
   type: TransactionType;
 }
 
-const INITIAL_CATEGORIES: Category[] = [
-  { id: '1', name: 'Alimentação', icon: 'restaurant', color: '#FF6384', type: 'expense' },
-  { id: '2', name: 'Transporte', icon: 'directions_car', color: '#36A2EB', type: 'expense' },
-  { id: '3', name: 'Moradia', icon: 'home', color: '#FFCE56', type: 'expense' },
-  { id: '4', name: 'Saúde', icon: 'local_hospital', color: '#4BC0C0', type: 'expense' },
-  { id: '5', name: 'Lazer', icon: 'theaters', color: '#9966FF', type: 'expense' },
-  { id: '6', name: 'Salário', icon: 'account_balance', color: '#4CAF50', type: 'income' },
-];
-
 const AVAILABLE_COLORS = [
   '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
   '#4CAF50', '#FF9800', '#E91E63', '#3F51B5', '#009688',
 ];
 
 export const Categories: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -70,6 +64,31 @@ export const Categories: React.FC = () => {
     message: '',
     severity: 'success',
   });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        const data = await getUserCategories();
+        // Mapear category_type da API para type do frontend
+        const mappedCategories = data.map((cat: any) => ({
+          id: cat.id.toString(),
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          type: cat.category_type as TransactionType,
+        }));
+        setCategories(mappedCategories);
+      } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+        showSnackbar('Erro ao carregar categorias', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
 
   const {
     control,
@@ -113,30 +132,59 @@ export const Categories: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    showSnackbar('Categoria excluída com sucesso!', 'success');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteCategory(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      showSnackbar('Categoria excluída com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao excluir categoria:', error);
+      showSnackbar('Erro ao excluir categoria', 'error');
+    }
   };
 
-  const onSubmit = (data: CategoryFormData) => {
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingCategory.id
-            ? { ...data, id: c.id }
-            : c
-        )
-      );
-      showSnackbar('Categoria atualizada com sucesso!', 'success');
-    } else {
-      const newCategory: Category = {
-        ...data,
-        id: Date.now().toString(),
+  const onSubmit = async (data: CategoryFormData) => {
+    try {
+      const apiData = {
+        name: data.name,
+        category_type: data.type,
+        icon: data.icon,
+        color: data.color,
       };
-      setCategories((prev) => [...prev, newCategory]);
-      showSnackbar('Categoria criada com sucesso!', 'success');
+      
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, apiData);
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === editingCategory.id
+              ? { 
+                  id: c.id,
+                  name: data.name,
+                  icon: data.icon,
+                  color: data.color,
+                  type: data.type
+                }
+              : c
+          )
+        );
+        showSnackbar('Categoria atualizada com sucesso!', 'success');
+      } else {
+        const newCat = await createCategory(apiData);
+        const newCategory: Category = {
+          id: newCat.id.toString(),
+          name: data.name,
+          icon: data.icon,
+          color: data.color,
+          type: data.type,
+        };
+        setCategories((prev) => [...prev, newCategory]);
+        showSnackbar('Categoria criada com sucesso!', 'success');
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar categoria:', error);
+      showSnackbar('Erro ao salvar categoria', 'error');
     }
-    handleCloseModal();
   };
 
   const handleExport = () => {
@@ -175,6 +223,14 @@ export const Categories: React.FC = () => {
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>

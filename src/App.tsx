@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppSidebar } from './components/organisms/AppSidebar';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Categories } from './pages/Categories';
@@ -46,8 +47,9 @@ function App() {
     <ThemeProvider>
       <Router>
         <Routes>
-          {/* Rota pública de login */}
+          {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Rotas protegidas */}
           <Route
@@ -106,7 +108,7 @@ function App() {
           />
 
           {/* Redirecionamento padrão */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>

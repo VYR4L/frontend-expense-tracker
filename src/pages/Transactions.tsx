@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -6,7 +6,11 @@ import {
   Button,
   Snackbar,
   Alert,
+  CircularProgress,
 } from '@mui/material';
+import { getPaginatedUserTransactions, createTransaction, updateTransaction, deleteTransaction } from '../api/transactionsAPI';
+import { getUserCategories } from '../api/categoriesAPI';
+import { getCurrentUser } from '../api/usersAPI';
 import { Add as AddIcon, Upload as UploadIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { TransactionTable } from '../components/organisms/TransactionTable';
 import { TransactionModal } from '../components/organisms/TransactionModal';
@@ -14,50 +18,13 @@ import { exportTransactionsToCSV, importTransactionsFromCSV } from '../utils/csv
 import { autoCategorize } from '../services/categorization';
 import type { Transaction, Category } from '../types';
 
-// Mock data
-const MOCK_CATEGORIES: Category[] = [
-  { id: '1', name: 'Alimentação', icon: 'restaurant', color: '#FF6384', type: 'expense' },
-  { id: '2', name: 'Transporte', icon: 'directions_car', color: '#36A2EB', type: 'expense' },
-  { id: '3', name: 'Moradia', icon: 'home', color: '#FFCE56', type: 'expense' },
-  { id: '4', name: 'Saúde', icon: 'local_hospital', color: '#4BC0C0', type: 'expense' },
-  { id: '5', name: 'Lazer', icon: 'theaters', color: '#9966FF', type: 'expense' },
-  { id: '6', name: 'Salário', icon: 'account_balance', color: '#4CAF50', type: 'income' },
-];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    description: 'Supermercado',
-    amount: 350.50,
-    type: 'expense',
-    category: 'Alimentação',
-    date: new Date(2025, 10, 5),
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    description: 'Uber',
-    amount: 25.00,
-    type: 'expense',
-    category: 'Transporte',
-    date: new Date(2025, 10, 7),
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    description: 'Salário',
-    amount: 5000.00,
-    type: 'income',
-    category: 'Salário',
-    date: new Date(2025, 10, 1),
-    createdAt: new Date(),
-  },
-];
-
 export const Transactions: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -67,6 +34,54 @@ export const Transactions: React.FC = () => {
     message: '',
     severity: 'success',
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        const user = await getCurrentUser();
+        setUserId(user.id);
+        
+        const [transactionsData, categoriesData] = await Promise.all([
+          getPaginatedUserTransactions(1, 10),
+          getUserCategories()
+        ]);
+        
+        // Mapear categorias da API
+        const mappedCategories = categoriesData.map((cat: any) => ({
+          id: cat.id.toString(),
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          type: cat.category_type as 'income' | 'expense',
+        }));
+        
+        // A API pode retornar diretamente um array ou um objeto com items
+        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
+        
+        const processedTransactions = transactionsList.map((t: any) => ({
+          id: t.id.toString(),
+          description: t.description,
+          amount: t.amount,
+          type: t.transaction_type || t.type,
+          category: mappedCategories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
+          date: new Date(t.date),
+          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
+        }));
+        
+        setTransactions(processedTransactions);
+        setCategories(mappedCategories);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showSnackbar('Erro ao carregar transações', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   const handleOpenModal = () => {
     setEditingTransaction(null);
@@ -78,28 +93,54 @@ export const Transactions: React.FC = () => {
     setEditingTransaction(null);
   };
 
-  const handleSubmit = (transactionData: Omit<Transaction, 'id' | 'createdAt'>) => {
-    if (editingTransaction) {
-      // Editar transação existente
-      setTransactions((prev) =>
-        prev.map((t) =>
-          t.id === editingTransaction.id
-            ? { ...transactionData, id: t.id, createdAt: t.createdAt }
-            : t
-        )
-      );
-      showSnackbar('Transação atualizada com sucesso!', 'success');
-    } else {
-      // Criar nova transação
-      const newTransaction: Transaction = {
-        ...transactionData,
-        id: Date.now().toString(),
-        createdAt: new Date(),
+  const handleSubmit = async (transactionData: Omit<Transaction, 'id' | 'createdAt'>) => {
+    try {
+      if (!userId) return;
+      
+      const categoryId = categories.find(c => c.name === transactionData.category)?.id;
+      if (!categoryId) {
+        showSnackbar('Categoria inválida', 'error');
+        return;
+      }
+      
+      const apiData = {
+        user_id: userId,
+        description: transactionData.description,
+        amount: transactionData.amount,
+        transaction_type: transactionData.type,
+        category_id: Number(categoryId),
+        date: transactionData.date.toISOString().split('T')[0],
       };
-      setTransactions((prev) => [newTransaction, ...prev]);
-      showSnackbar('Transação criada com sucesso!', 'success');
+      
+      if (editingTransaction) {
+        await updateTransaction(editingTransaction.id, apiData);
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.id === editingTransaction.id
+              ? { ...transactionData, id: t.id, createdAt: t.createdAt }
+              : t
+          )
+        );
+        showSnackbar('Transação atualizada com sucesso!', 'success');
+      } else {
+        const newTrans = await createTransaction(apiData);
+        const newTransaction: Transaction = {
+          id: newTrans.id.toString(),
+          description: newTrans.description,
+          amount: newTrans.amount,
+          type: newTrans.transaction_type || transactionData.type,
+          category: transactionData.category,
+          date: new Date(newTrans.date),
+          createdAt: new Date(newTrans.created_at),
+        };
+        setTransactions((prev) => [newTransaction, ...prev]);
+        showSnackbar('Transação criada com sucesso!', 'success');
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar transação:', error);
+      showSnackbar('Erro ao salvar transação', 'error');
     }
-    handleCloseModal();
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -107,9 +148,15 @@ export const Transactions: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-    showSnackbar('Transação excluída com sucesso!', 'success');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTransaction(id);
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      showSnackbar('Transação excluída com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao excluir transação:', error);
+      showSnackbar('Erro ao excluir transação', 'error');
+    }
   };
 
   const handleExport = () => {
@@ -127,7 +174,7 @@ export const Transactions: React.FC = () => {
       const newTransactions = result.data.map((data) => {
         // Tentar categorizar automaticamente se a categoria não existir
         let category = data.category;
-        const categoryExists = MOCK_CATEGORIES.some((cat) => cat.name === category);
+        const categoryExists = categories.some((cat) => cat.name === category);
         
         if (!categoryExists) {
           const suggestedCategory = autoCategorize(data.description);
@@ -164,6 +211,14 @@ export const Transactions: React.FC = () => {
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -231,7 +286,7 @@ export const Transactions: React.FC = () => {
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
         transaction={editingTransaction}
-        categories={MOCK_CATEGORIES}
+        categories={categories}
       />
 
       <Snackbar

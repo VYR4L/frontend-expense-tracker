@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getUserGoals, createGoal, updateGoal, deleteGoal } from '../api/goalsAPI';
+import { getCurrentUser } from '../api/usersAPI';
 import {
   Container,
   Typography,
@@ -37,6 +39,7 @@ import { CategoryIcon } from '../components/atoms/CategoryIcon';
 import { exportGoalsToCSV, importGoalsFromCSV } from '../utils/csvHelper';
 import { useForm, Controller } from 'react-hook-form';
 import type { Goal } from '../types';
+import { CircularProgress } from '@mui/material';
 
 interface GoalFormData {
   name: string;
@@ -47,20 +50,17 @@ interface GoalFormData {
   category: string;
 }
 
-const INITIAL_GOALS: Goal[] = [
-  { id: '1', name: 'Comprar um PC Gamer', targetAmount: 5000, currentAmount: 1500, icon: 'computer', color: '#FF5733', category: 'Eletrônicos' },
-  { id: '2', name: 'Viagem para a Europa', targetAmount: 8000, currentAmount: 3000, icon: 'flight', color: '#33C1FF', category: 'Viagem' },
-];
-
 const AVAILABLE_COLORS = [
   '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
   '#4CAF50', '#FF9800', '#E91E63', '#3F51B5', '#009688',
 ];
 
 export const Goals: React.FC = () => {
-  const [goals, setGoals] = useState<Goal[]>(INITIAL_GOALS);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -70,6 +70,36 @@ export const Goals: React.FC = () => {
     message: '',
     severity: 'success'
   });
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setLoading(true);
+        const user = await getCurrentUser();
+        setUserId(user.id);
+        
+        const data = await getUserGoals(user.id.toString());
+        // Corrige o mapeamento dos campos para o formato esperado pelo frontend
+        const mappedGoals = data.map((goal: any) => ({
+          id: goal.id.toString(),
+          name: goal.name,
+          targetAmount: Number(goal.target_amount),
+          currentAmount: Number(goal.current_amount),
+          icon: goal.icon || '',
+          color: goal.color,
+          category: goal.category || 'default',
+        }));
+        setGoals(mappedGoals);
+      } catch (error) {
+        console.error('Erro ao carregar metas:', error);
+        showSnackbar('Erro ao carregar metas', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchGoals();
+  }, []);
 
   const {
     control,
@@ -119,36 +149,67 @@ export const Goals: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== id));
-    showSnackbar('Meta excluída com sucesso!', 'success');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteGoal(id);
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+      showSnackbar('Meta excluída com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao excluir meta:', error);
+      showSnackbar('Erro ao excluir meta', 'error');
+    }
   };
 
-  const onSubmit = (data: GoalFormData) => {
-    const goalData = {
-      ...data,
-      targetAmount: Number(data.targetAmount),
-      currentAmount: Number(data.currentAmount),
-    };
-    
-    if (editingGoal) {
-      setGoals((prev) =>
-        prev.map((g) =>
-          g.id === editingGoal.id
-            ? { ...goalData, id: g.id }
-            : g
-        )
-      );
-      showSnackbar('Meta atualizada com sucesso!', 'success');
-    } else {
-      const newGoal: Goal = {
-        ...goalData,
-        id: Date.now().toString(),
+  const onSubmit = async (data: GoalFormData) => {
+    try {
+      if (!userId) return;
+      
+      const goalData = {
+        user_id: userId,
+        name: data.name,
+        target_amount: Number(data.targetAmount),
+        current_amount: Number(data.currentAmount),
+        icon: data.icon,
+        color: data.color,
       };
-      setGoals((prev) => [newGoal, ...prev]);
-      showSnackbar('Meta criada com sucesso!', 'success');
+      
+      if (editingGoal) {
+        await updateGoal(editingGoal.id, goalData);
+        setGoals((prev) =>
+          prev.map((g) =>
+            g.id === editingGoal.id
+              ? { 
+                  id: g.id,
+                  name: data.name,
+                  targetAmount: Number(data.targetAmount),
+                  currentAmount: Number(data.currentAmount),
+                  icon: data.icon,
+                  color: data.color,
+                  category: data.category
+                }
+              : g
+          )
+        );
+        showSnackbar('Meta atualizada com sucesso!', 'success');
+      } else {
+        const newGoalData = await createGoal(goalData);
+        const newGoal: Goal = {
+          id: newGoalData.id.toString(),
+          name: newGoalData.name,
+          targetAmount: newGoalData.target_amount,
+          currentAmount: newGoalData.current_amount || 0,
+          icon: newGoalData.icon || '',
+          color: newGoalData.color,
+          category: data.category,
+        };
+        setGoals((prev) => [newGoal, ...prev]);
+        showSnackbar('Meta criada com sucesso!', 'success');
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar meta:', error);
+      showSnackbar('Erro ao salvar meta', 'error');
     }
-    handleCloseModal();
   };
 
   const handleExport = () => {
@@ -189,6 +250,14 @@ export const Goals: React.FC = () => {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  }
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
   }
 
   return (
@@ -287,7 +356,7 @@ export const Goals: React.FC = () => {
                     justifyContent: 'center',
                   }}
                 >
-                  <CategoryIcon category={goal.category} />
+                  <CategoryIcon category={goal.icon} />
                 </Box>
               </ListItemIcon>
               <ListItemText

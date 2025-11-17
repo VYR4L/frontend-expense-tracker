@@ -12,9 +12,10 @@ import { AccountBalance as LogoIcon } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import  { login } from '../api/authAPI';
 
 interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -28,7 +29,7 @@ export const Login: React.FC = () => {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
@@ -37,14 +38,19 @@ export const Login: React.FC = () => {
     try {
       setError(null);
       
-      // Simular autenticação (em produção, seria uma chamada à API)
-      // Para demo, aceitar qualquer email/senha
-      if (data.email && data.password) {
-        // Salvar token fictício no localStorage
-        localStorage.setItem('expense-tracker-auth', 'demo-token');
+      if (data.username && data.password) {
+        const response = await login(
+          data.username,
+          data.password,
+        );
         
-        // Redirecionar para dashboard
-        navigate('/dashboard');
+        if (response.access_token) {
+          localStorage.setItem('token', response.access_token);
+          localStorage.setItem('expense-tracker-auth', 'true');
+          navigate('/dashboard');
+        } else {
+          setError('Credenciais inválidas. Tente novamente.');
+        }
       } else {
         setError('Email e senha são obrigatórios');
       }
@@ -110,7 +116,7 @@ export const Login: React.FC = () => {
               sx={{ width: '100%' }}
             >
               <Controller
-                name="email"
+                name="username"
                 control={control}
                 rules={{
                   required: 'Email é obrigatório',
@@ -128,8 +134,8 @@ export const Login: React.FC = () => {
                     type="email"
                     autoComplete="email"
                     autoFocus
-                    error={!!errors.email}
-                    helperText={errors.email?.message}
+                    error={!!errors.username}
+                    helperText={errors.username?.message}
                   />
                 )}
               />
@@ -169,13 +175,25 @@ export const Login: React.FC = () => {
                 {isSubmitting ? 'Entrando...' : 'Entrar'}
               </Button>
 
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', textAlign: 'center' }}
-              >
-                Demo: use qualquer email e senha para entrar
-              </Typography>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Não tem uma conta?{' '}
+                  <Typography
+                    component="a"
+                    href="/register"
+                    sx={{
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                      '&:hover': {
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    Criar conta
+                  </Typography>
+                </Typography>
+              </Box>
             </Box>
           </Paper>
         </motion.div>

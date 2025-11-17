@@ -1,16 +1,15 @@
 import axios from 'axios';
-import { URL, authHeader } from './utils/authHeader';
+import { URL } from './utils/authHeader';
 
-type Credential = {
-  email: string;
-  password: string;
-};
+export const login = async (email: string, password: string) => {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
 
-export const login = async (credential: Credential) => {
-  try {
-    const response = await axios.post(`${URL}/auth/login`, credential);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axios.post(`${URL}/auth/login`, formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+  return response.data;
 }

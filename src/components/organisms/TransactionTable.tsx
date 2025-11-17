@@ -28,7 +28,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       headerName: 'Data',
       width: 120,
       valueFormatter: (value: Date) => {
-        return format(new Date(value), 'dd/MM/yyyy', { locale: ptBR });
+        if (!value) return '-';
+        try {
+          const date = value instanceof Date ? value : new Date(value);
+          if (isNaN(date.getTime())) return '-';
+          return format(date, 'dd/MM/yyyy', { locale: ptBR });
+        } catch {
+          return '-';
+        }
       },
     },
     {
@@ -65,13 +72,17 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       field: 'amount',
       headerName: 'Valor',
       width: 150,
+      align: 'right',
+      headerAlign: 'left',
       renderCell: (params) => (
-        <CurrencyText
-          value={params.value}
-          type={params.row.type}
-          showSign
-          variant="body2"
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <CurrencyText
+            value={params.value}
+            type={params.row.type}
+            showSign
+            variant="body2"
+          />
+        </Box>
       ),
     },
     {
@@ -80,8 +91,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       width: 120,
       sortable: false,
       filterable: false,
+      align: 'center',
+      headerAlign: 'center',
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: '100%' }}>
           <Tooltip title="Editar transação">
             <IconButton
               size="small"

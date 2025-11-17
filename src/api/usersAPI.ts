@@ -15,7 +15,7 @@ export const createUser = async (user: User) => {
 }
 
 export const getCurrentUser = async () => {
-  const response = await axios.get(`${URL}/users/me`, {
+  const response = await axios.get(`${URL}/auth/me`, {
     headers: authHeader()
   });
   return response.data;

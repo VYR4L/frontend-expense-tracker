@@ -1,16 +1,16 @@
 import axios from 'axios';
 import { URL, authHeader } from './utils/authHeader';
 
-type Transaction = {
+type TransactionAPI = {
   user_id: number;
   description: string;
   amount: number;
-  type: 'income' | 'expense';
+  transaction_type: 'income' | 'expense';
   category_id: number;
   date: string;
 };
 
-export const createTransaction = async (transaction: Transaction, ) => {
+export const createTransaction = async (transaction: TransactionAPI, ) => {
   const response = await axios.post(`${URL}/transactions`, transaction, {
     headers: authHeader()
   });
@@ -24,7 +24,7 @@ export const getPaginatedUserTransactions = async (page: number, limit: number, 
   return response.data;
 }
 
-export const updateTransaction = async (transactionId: string, updates: Partial<Transaction>, ) => {
+export const updateTransaction = async (transactionId: string, updates: Partial<TransactionAPI>, ) => {
   const response = await axios.put(`${URL}/transactions/${transactionId}`, updates, {
     headers: authHeader()
   });

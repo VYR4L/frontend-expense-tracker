@@ -21,7 +21,7 @@ export const CurrencyText: React.FC<CurrencyTextProps> = ({
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-    }).format(Math.abs(amount));
+    }).format(amount);
   };
 
   const getColor = (): string | undefined => {
@@ -39,8 +39,8 @@ export const CurrencyText: React.FC<CurrencyTextProps> = ({
 
   const getSign = (): string => {
     if (!showSign) return '';
-    if (type === 'income' || value > 0) return '+ ';
-    if (type === 'expense' || value < 0) return '- ';
+    if (type === 'income') return '+ ';
+    if (type === 'expense') return '- ';
     return '';
   };
 

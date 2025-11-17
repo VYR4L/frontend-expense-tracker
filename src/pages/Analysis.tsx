@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Container, Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, useTheme } from '@mui/material';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Container, Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, useTheme, CircularProgress } from '@mui/material';
+import { getPaginatedUserTransactions } from '../api/transactionsAPI';
+import { getUserCategories } from '../api/categoriesAPI';
+import { getBalance } from '../api/balancesAPI';
 import {
   TrendingDown,
   TrendingUp,
@@ -13,105 +16,104 @@ import type { SelectChangeEvent } from '@mui/material';
 import { useThemeMode } from '../context/ThemeContext';
 import { StatCard } from '../components/molecules/StatCard';
 
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    description: 'Supermercado',
-    amount: 350.50,
-    type: 'expense',
-    category: 'Alimentação',
-    date: new Date(2025, 10, 5),
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    description: 'Uber',
-    amount: 25.00,
-    type: 'expense',
-    category: 'Transporte',
-    date: new Date(2025, 10, 7),
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    description: 'Salário',
-    amount: 5000.00,
-    type: 'income',
-    category: 'Salário',
-    date: new Date(2025, 10, 1),
-    createdAt: new Date(),
-  },
-  {
-    id: '4',
-    description: 'Aluguel',
-    amount: 1500.00,
-    type: 'expense',
-    category: 'Moradia',
-    date: new Date(2025, 10, 10),
-    createdAt: new Date(),
-  },
-  {
-    id: '5',
-    description: 'Cinema',
-    amount: 60.00,
-    type: 'expense',
-    category: 'Lazer',
-    date: new Date(2025, 10, 12),
-    createdAt: new Date(),
-  },
-];
-
 const MONTHS = [
-  'Janeiro 2025',
-  'Fevereiro 2025',
-  'Março 2025',
-  'Abril 2025',
-  'Maio 2025',
-  'Junho 2025',
-  'Julho 2025',
-  'Agosto 2025',
-  'Setembro 2025',
-  'Outubro 2025',
-  'Novembro 2025',
-  'Dezembro 2025',
+  { full: 'Janeiro', abbr: 'Jan' },
+  { full: 'Fevereiro', abbr: 'Fev' },
+  { full: 'Março', abbr: 'Mar' },
+  { full: 'Abril', abbr: 'Abr' },
+  { full: 'Maio', abbr: 'Mai' },
+  { full: 'Junho', abbr: 'Jun' },
+  { full: 'Julho', abbr: 'Jul' },
+  { full: 'Agosto', abbr: 'Ago' },
+  { full: 'Setembro', abbr: 'Set' },
+  { full: 'Outubro', abbr: 'Out' },
+  { full: 'Novembro', abbr: 'Nov' },
+  { full: 'Dezembro', abbr: 'Dez' },
 ];
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export const SpendsHeatmap: React.FC = () => {
-  const [selectedMonth, setSelectedMonth] = useState(10);
-  const [selectedYear] = useState(2025);
+  const currentYear = new Date().getFullYear();
+  const currentMonthIdx = new Date().getMonth();
+  const monthsWithYear = MONTHS.map(m => `${m.full} ${currentYear}`);
+  const [selectedMonth, setSelectedMonth] = useState(monthsWithYear[currentMonthIdx]);
+  const [selectedYear] = useState(currentYear);
   const { mode } = useThemeMode();
   const theme = useTheme();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [, setBalanceData] = useState<any>(null);
+  const [, setUserId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const userResp = await import('../api/usersAPI');
+        const user = await userResp.getCurrentUser();
+        setUserId(user.id);
+        const [transactionsData, categoriesData, balanceResp] = await Promise.all([
+          getPaginatedUserTransactions(1, 1000),
+          getUserCategories(),
+          getBalance(user.id.toString())
+        ]);
+        const mappedCategories = categoriesData.map((cat: any) => ({
+          id: cat.id.toString(),
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          type: cat.category_type as 'income' | 'expense',
+        }));
+        const transactionsList = Array.isArray(transactionsData) ? transactionsData : (transactionsData?.items || []);
+        const processedTransactions = transactionsList.map((t: any) => ({
+          id: t.id.toString(),
+          description: t.description,
+          amount: t.amount,
+          type: t.transaction_type || t.type,
+          category: mappedCategories.find((c: any) => c.id === t.category_id.toString())?.name || 'Sem categoria',
+          date: new Date(t.date),
+          createdAt: t.created_at ? new Date(t.created_at) : new Date(t.date),
+        }));
+        setTransactions(processedTransactions);
+        setBalanceData(balanceResp);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const selectedMonthIdx = useMemo(() => {
+    const normalized = selectedMonth.replace(` ${currentYear}`, '').trim();
+    return MONTHS.findIndex(m => m.full === normalized);
+  }, [selectedMonth, currentYear]);
 
   const heatmapData = useMemo(() => {
-    const firstDay = new Date(selectedYear, selectedMonth, 1);
-    const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
+    const firstDay = new Date(selectedYear, selectedMonthIdx, 1);
+    const lastDay = new Date(selectedYear, selectedMonthIdx + 1, 0);
     const daysInMonth = lastDay.getDate();
-    
     const firstDayOfWeek = firstDay.getDay();
     const totalDays = firstDayOfWeek + daysInMonth;
     const weeksCount = Math.ceil(totalDays / 7);
-    
     const seriesData: HeatmapData[] = DAYS_OF_WEEK.map((day) => ({
       name: day,
       data: [],
     }));
-    
     for (let week = 0; week < weeksCount; week++) {
       for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
         const dayNumber = week * 7 + dayOfWeek - firstDayOfWeek + 1;
-        
         if (dayNumber >= 1 && dayNumber <= daysInMonth) {
-          const totalSpend = MOCK_TRANSACTIONS
+          const totalSpend = transactions
             .filter((t) => 
               t.type === 'expense' &&
               t.date.getFullYear() === selectedYear &&
-              t.date.getMonth() === selectedMonth &&
+              t.date.getMonth() === selectedMonthIdx &&
               t.date.getDate() === dayNumber
             )
             .reduce((sum, t) => sum + t.amount, 0);
-          
           seriesData[dayOfWeek].data.push({
             x: `Dia ${dayNumber}`,
             y: totalSpend,
@@ -124,40 +126,34 @@ export const SpendsHeatmap: React.FC = () => {
         }
       }
     }
-
     return seriesData;
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonthIdx, selectedYear, transactions]);
 
-  // Calcular previsão
+  // Calcular previsão usando dados da API se disponíveis
   const forecast: ForecastData = useMemo(() => {
+    // Filtra transações do mês selecionado
     const today = new Date();
     const currentDay = today.getDate();
-    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const daysInMonth = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
     const daysRemaining = daysInMonth - currentDay;
-    
-    // Calcular gastos e receitas até agora
-    const totalSpent = MOCK_TRANSACTIONS
-      .filter((t) => 
-        t.type === 'expense' &&
-        t.date.getFullYear() === selectedYear &&
-        t.date.getMonth() === selectedMonth &&
-        t.date.getDate() <= currentDay
-      )
+    const monthTransactions = transactions.filter(
+      t => t.date.getFullYear() === selectedYear && t.date.getMonth() === selectedMonthIdx
+    );
+    const totalSpent = monthTransactions
+      .filter(t => t.type === 'expense' && t.date.getDate() <= currentDay)
       .reduce((sum, t) => sum + t.amount, 0);
-
-    const totalIncome = MOCK_TRANSACTIONS
-      .filter((t) => 
-        t.type === 'income' &&
-        t.date.getFullYear() === selectedYear &&
-        t.date.getMonth() === selectedMonth &&
-        t.date.getDate() <= currentDay
-      )
+    const totalIncome = monthTransactions
+      .filter(t => t.type === 'income' && t.date.getDate() <= currentDay)
       .reduce((sum, t) => sum + t.amount, 0);
-    
-    const dailyAverage = totalSpent / currentDay;
-    const projectedTotal = totalSpent + (dailyAverage * daysRemaining);
-    const projectedBalance = totalIncome - projectedTotal;
-    
+    // Se não há receita, não faz projeção
+    let dailyAverage = 0;
+    let projectedTotal = 0;
+    let projectedBalance = 0;
+    if (totalIncome > 0) {
+      dailyAverage = currentDay > 0 ? totalSpent / currentDay : 0;
+      projectedTotal = totalSpent + (dailyAverage * daysRemaining);
+      projectedBalance = totalIncome - projectedTotal;
+    }
     return {
       totalSpent,
       dailyAverage,
@@ -166,45 +162,43 @@ export const SpendsHeatmap: React.FC = () => {
       totalIncome,
       projectedBalance,
     };
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonthIdx, selectedYear, transactions]);
 
   // Dados para o gráfico de área (histórico + projeção)
   const forecastChartData = useMemo(() => {
     const today = new Date();
     const currentDay = today.getDate();
-    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-    
+    const daysInMonth = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
     const historicalData: number[] = [];
     const projectedData: number[] = [];
     const categories: string[] = [];
-    
     let cumulativeSpent = 0;
-    
-    // Dados históricos
     for (let day = 1; day <= daysInMonth; day++) {
       categories.push(`${day}`);
-      
       if (day <= currentDay) {
-        const daySpent = MOCK_TRANSACTIONS
+        const daySpent = transactions
           .filter((t) => 
             t.type === 'expense' &&
             t.date.getFullYear() === selectedYear &&
-            t.date.getMonth() === selectedMonth &&
+            t.date.getMonth() === selectedMonthIdx &&
             t.date.getDate() === day
           )
           .reduce((sum, t) => sum + t.amount, 0);
-        
         cumulativeSpent += daySpent;
         historicalData.push(cumulativeSpent);
         projectedData.push(null as any);
       } else {
-        // Projeção
-        cumulativeSpent += forecast.dailyAverage;
-        historicalData.push(null as any);
-        projectedData.push(cumulativeSpent);
+        // Só projeta se houver receita
+        if (forecast.totalIncome > 0) {
+          cumulativeSpent += forecast.dailyAverage;
+          historicalData.push(null as any);
+          projectedData.push(cumulativeSpent);
+        } else {
+          historicalData.push(null as any);
+          projectedData.push(null as any);
+        }
       }
     }
-    
     return {
       series: [
         {
@@ -218,7 +212,7 @@ export const SpendsHeatmap: React.FC = () => {
       ],
       categories,
     };
-  }, [selectedMonth, selectedYear, forecast.dailyAverage]);
+  }, [selectedMonthIdx, selectedYear, forecast.dailyAverage, forecast.totalIncome]);
 
   const forecastChartOptions: ApexOptions = useMemo(() => ({
     chart: {
@@ -365,9 +359,17 @@ export const SpendsHeatmap: React.FC = () => {
     },
   }), [mode, theme]);
 
-  const handleMonthChange = (event: SelectChangeEvent<number>) => {
-    setSelectedMonth(event.target.value as number);
+  const handleMonthChange = (event: SelectChangeEvent<string>) => {
+    setSelectedMonth(event.target.value as string);
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -396,9 +398,9 @@ export const SpendsHeatmap: React.FC = () => {
             label="Mês"
             onChange={handleMonthChange}
           >
-            {MONTHS.map((month, index) => (
-              <MenuItem key={month} value={index}>
-                {month}
+            {monthsWithYear.map((monthLabel) => (
+              <MenuItem key={monthLabel} value={monthLabel}>
+                {monthLabel}
               </MenuItem>
             ))}
           </Select>
