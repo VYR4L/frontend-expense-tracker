@@ -13,6 +13,9 @@
 
 <p align="center">
   🔗 <a href="https://vyral-expense-tracker.netlify.app">Aplicativo no ar</a>
+  <br /><br />
+  ou caso o link acima esteja indisponível:<br /><br />
+  🔗 <a href="https://frontend-expense-tracker-virid.vercel.app">Aplicativo no ar</a>
 </p>
 
 <p align="center">
