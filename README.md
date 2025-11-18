@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  🔗 <a href="https://vyral-expense-tracker.netlify.app">Demo ao vivo</a>
+  🔗 <a href="https://vyral-expense-tracker.netlify.app">Aplicativo no ar</a>
 </p>
 
 <p align="center">
