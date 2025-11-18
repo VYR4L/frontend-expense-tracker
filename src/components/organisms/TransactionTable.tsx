@@ -1,7 +1,7 @@
 import React from 'react';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Paper, Chip, Box, IconButton, Tooltip } from '@mui/material';
+import { Paper, Chip, Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -126,43 +126,157 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     },
   ];
 
+  const CustomPagination = () => {
+    if (!rowCount || !paginationModel || !onPaginationModelChange) return null;
+    
+    const pageCount = Math.ceil(rowCount / paginationModel.pageSize);
+    const currentPage = paginationModel.page + 1;
+    
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Linhas por página:
+          </Typography>
+          <select
+            value={paginationModel.pageSize}
+            onChange={(e) => onPaginationModelChange({ page: 0, pageSize: Number(e.target.value) })}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(0, 0, 0, 0.23)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            {[10, 25, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+            {`${paginationModel.page * paginationModel.pageSize + 1}-${Math.min((paginationModel.page + 1) * paginationModel.pageSize, rowCount)} de ${rowCount}`}
+          </Typography>
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton
+            onClick={() => onPaginationModelChange({ ...paginationModel, page: 0 })}
+            disabled={currentPage === 1}
+            size="small"
+          >
+            {'<<'}
+          </IconButton>
+          <IconButton
+            onClick={() => onPaginationModelChange({ ...paginationModel, page: paginationModel.page - 1 })}
+            disabled={currentPage === 1}
+            size="small"
+          >
+            {'<'}
+          </IconButton>
+          
+          {/* Números de página */}
+          {(() => {
+            const pages: (number | string)[] = [];
+            const showPages = 5;
+            
+            if (pageCount <= 7) {
+              for (let i = 1; i <= pageCount; i++) pages.push(i);
+            } else {
+              if (currentPage <= 3) {
+                for (let i = 1; i <= showPages; i++) pages.push(i);
+                pages.push('...');
+                pages.push(pageCount);
+              } else if (currentPage >= pageCount - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = pageCount - showPages + 1; i <= pageCount; i++) pages.push(i);
+              } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                pages.push('...');
+                pages.push(pageCount);
+              }
+            }
+            
+            return pages.map((page, idx) => 
+              typeof page === 'number' ? (
+                <IconButton
+                  key={idx}
+                  onClick={() => onPaginationModelChange({ ...paginationModel, page: page - 1 })}
+                  size="small"
+                  sx={{
+                    minWidth: 32,
+                    bgcolor: currentPage === page ? 'primary.main' : 'transparent',
+                    color: currentPage === page ? 'primary.contrastText' : 'text.primary',
+                    '&:hover': {
+                      bgcolor: currentPage === page ? 'primary.dark' : 'action.hover',
+                    },
+                  }}
+                >
+                  {page}
+                </IconButton>
+              ) : (
+                <Box key={idx} sx={{ px: 1, color: 'text.secondary' }}>...</Box>
+              )
+            );
+          })()}
+          
+          <IconButton
+            onClick={() => onPaginationModelChange({ ...paginationModel, page: paginationModel.page + 1 })}
+            disabled={currentPage === pageCount}
+            size="small"
+          >
+            {'>'}
+          </IconButton>
+          <IconButton
+            onClick={() => onPaginationModelChange({ ...paginationModel, page: pageCount - 1 })}
+            disabled={currentPage === pageCount}
+            size="small"
+          >
+            {'>>'}
+          </IconButton>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
-    <Paper sx={{ width: '100%', height: 600 }}>
-      <DataGrid
-        rows={transactions}
-        columns={columns}
-        loading={loading}
-        pageSizeOptions={[10, 25, 50, 100]}
-        paginationModel={paginationModel}
-        onPaginationModelChange={onPaginationModelChange}
-        rowCount={rowCount}
-        paginationMode="server"
-        initialState={{
-          sorting: {
-            sortModel: [{ field: 'date', sort: 'desc' }],
-          },
-        }}
-        slots={{
-          toolbar: GridToolbar,
-        }}
-        slotProps={{
-          toolbar: {
-            showQuickFilter: true,
-            quickFilterProps: { debounceMs: 500 },
-          },
-        }}
-        sx={{
-          border: 0,
-          '& .MuiDataGrid-cell:focus': {
-            outline: 'none',
-          },
-          '& .MuiDataGrid-row:hover': {
-            backgroundColor: 'action.hover',
-          },
-        }}
-        disableRowSelectionOnClick
-        density="comfortable"
-      />
+    <Paper sx={{ width: '100%', height: 600, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+        <DataGrid
+          rows={transactions}
+          columns={columns}
+          loading={loading}
+          hideFooter
+          initialState={{
+            sorting: {
+              sortModel: [{ field: 'date', sort: 'desc' }],
+            },
+          }}
+          slots={{
+            toolbar: GridToolbar,
+          }}
+          slotProps={{
+            toolbar: {
+              showQuickFilter: true,
+              quickFilterProps: { debounceMs: 500 },
+            },
+          }}
+          sx={{
+            border: 0,
+            '& .MuiDataGrid-cell:focus': {
+              outline: 'none',
+            },
+            '& .MuiDataGrid-row:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
+          disableRowSelectionOnClick
+          density="comfortable"
+        />
+      </Box>
+      <CustomPagination />
     </Paper>
   );
 };
