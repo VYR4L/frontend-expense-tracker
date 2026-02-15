@@ -36,9 +36,8 @@ const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 export const SpendsHeatmap: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const currentMonthIdx = new Date().getMonth();
-  const monthsWithYear = MONTHS.map(m => `${m.full} ${currentYear}`);
-  const [selectedMonth, setSelectedMonth] = useState(monthsWithYear[currentMonthIdx]);
-  const [selectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthIdx);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const { mode } = useThemeMode();
   const theme = useTheme();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -86,14 +85,15 @@ export const SpendsHeatmap: React.FC = () => {
     fetchData();
   }, []);
 
-  const selectedMonthIdx = useMemo(() => {
-    const normalized = selectedMonth.replace(` ${currentYear}`, '').trim();
-    return MONTHS.findIndex(m => m.full === normalized);
-  }, [selectedMonth, currentYear]);
+  // Extrai anos únicos das transações
+  const availableYears = useMemo(() => {
+    const years = new Set(transactions.map(t => t.date.getFullYear()));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions]);
 
   const heatmapData = useMemo(() => {
-    const firstDay = new Date(selectedYear, selectedMonthIdx, 1);
-    const lastDay = new Date(selectedYear, selectedMonthIdx + 1, 0);
+    const firstDay = new Date(selectedYear, selectedMonth, 1);
+    const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
     const firstDayOfWeek = firstDay.getDay();
     const totalDays = firstDayOfWeek + daysInMonth;
@@ -110,7 +110,7 @@ export const SpendsHeatmap: React.FC = () => {
             .filter((t) => 
               t.type === 'expense' &&
               t.date.getFullYear() === selectedYear &&
-              t.date.getMonth() === selectedMonthIdx &&
+              t.date.getMonth() === selectedMonth &&
               t.date.getDate() === dayNumber
             )
             .reduce((sum, t) => sum + t.amount, 0);
@@ -127,17 +127,17 @@ export const SpendsHeatmap: React.FC = () => {
       }
     }
     return seriesData;
-  }, [selectedMonthIdx, selectedYear, transactions]);
+  }, [selectedMonth, selectedYear, transactions]);
 
   // Calcular previsão usando dados da API se disponíveis
   const forecast: ForecastData = useMemo(() => {
     // Filtra transações do mês selecionado
     const today = new Date();
     const currentDay = today.getDate();
-    const daysInMonth = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const daysRemaining = daysInMonth - currentDay;
     const monthTransactions = transactions.filter(
-      t => t.date.getFullYear() === selectedYear && t.date.getMonth() === selectedMonthIdx
+      t => t.date.getFullYear() === selectedYear && t.date.getMonth() === selectedMonth
     );
     const totalSpent = monthTransactions
       .filter(t => t.type === 'expense' && t.date.getDate() <= currentDay)
@@ -162,13 +162,13 @@ export const SpendsHeatmap: React.FC = () => {
       totalIncome,
       projectedBalance,
     };
-  }, [selectedMonthIdx, selectedYear, transactions]);
+  }, [selectedMonth, selectedYear, transactions]);
 
   // Dados para o gráfico de área (histórico + projeção)
   const forecastChartData = useMemo(() => {
     const today = new Date();
     const currentDay = today.getDate();
-    const daysInMonth = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const historicalData: number[] = [];
     const projectedData: number[] = [];
     const categories: string[] = [];
@@ -180,7 +180,7 @@ export const SpendsHeatmap: React.FC = () => {
           .filter((t) => 
             t.type === 'expense' &&
             t.date.getFullYear() === selectedYear &&
-            t.date.getMonth() === selectedMonthIdx &&
+            t.date.getMonth() === selectedMonth &&
             t.date.getDate() === day
           )
           .reduce((sum, t) => sum + t.amount, 0);
@@ -212,7 +212,7 @@ export const SpendsHeatmap: React.FC = () => {
       ],
       categories,
     };
-  }, [selectedMonthIdx, selectedYear, forecast.dailyAverage, forecast.totalIncome]);
+  }, [selectedMonth, selectedYear, transactions, forecast.dailyAverage, forecast.totalIncome]);
 
   const forecastChartOptions: ApexOptions = useMemo(() => ({
     chart: {
@@ -360,7 +360,11 @@ export const SpendsHeatmap: React.FC = () => {
   }), [mode, theme]);
 
   const handleMonthChange = (event: SelectChangeEvent<string>) => {
-    setSelectedMonth(event.target.value as string);
+    setSelectedMonth(parseInt(event.target.value));
+  };
+
+  const handleYearChange = (event: SelectChangeEvent<string>) => {
+    setSelectedYear(parseInt(event.target.value));
   };
 
   if (loading) {
@@ -390,21 +394,39 @@ export const SpendsHeatmap: React.FC = () => {
           </Typography>
         </Box>
 
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="month-select-label">Mês</InputLabel>
-          <Select
-            labelId="month-select-label"
-            value={selectedMonth}
-            label="Mês"
-            onChange={handleMonthChange}
-          >
-            {monthsWithYear.map((monthLabel) => (
-              <MenuItem key={monthLabel} value={monthLabel}>
-                {monthLabel}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel id="month-select-label">Mês</InputLabel>
+            <Select
+              labelId="month-select-label"
+              value={selectedMonth.toString()}
+              label="Mês"
+              onChange={handleMonthChange}
+            >
+              {MONTHS.map((month, idx) => (
+                <MenuItem key={idx} value={idx.toString()}>
+                  {month.full}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel id="year-select-label">Ano</InputLabel>
+            <Select
+              labelId="year-select-label"
+              value={selectedYear.toString()}
+              label="Ano"
+              onChange={handleYearChange}
+            >
+              {(availableYears.length > 0 ? availableYears : [currentYear]).map((year) => (
+                <MenuItem key={year} value={year.toString()}>
+                  {year}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Forecast Cards */}

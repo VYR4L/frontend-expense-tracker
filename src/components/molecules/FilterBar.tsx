@@ -4,24 +4,34 @@ import type { SelectChangeEvent } from '@mui/material';
 import type { Category } from '../../types';
 
 interface FilterBarProps {
-  selectedMonth: string;
-  onMonthChange: (month: string) => void;
+  selectedMonth: number;
+  onMonthChange: (month: number) => void;
+  selectedYear: number;
+  onYearChange: (year: number) => void;
   selectedCategory: string | null;
   onCategoryChange: (category: string | null) => void;
   categories: Category[];
-  months: string[];
+  months: { full: string; abbr: string }[];
+  years: number[];
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   selectedMonth,
   onMonthChange,
+  selectedYear,
+  onYearChange,
   selectedCategory,
   onCategoryChange,
   categories,
   months,
+  years,
 }) => {
   const handleMonthChange = (event: SelectChangeEvent) => {
-    onMonthChange(event.target.value);
+    onMonthChange(parseInt(event.target.value));
+  };
+
+  const handleYearChange = (event: SelectChangeEvent) => {
+    onYearChange(parseInt(event.target.value));
   };
 
   return (
@@ -33,18 +43,35 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         mb: 3,
       }}
     >
-      <FormControl sx={{ minWidth: 200 }}>
+      <FormControl sx={{ minWidth: 150 }}>
         <InputLabel id="month-select-label">Mês</InputLabel>
         <Select
           labelId="month-select-label"
           id="month-select"
-          value={selectedMonth}
+          value={selectedMonth.toString()}
           label="Mês"
           onChange={handleMonthChange}
         >
-          {months.map((month) => (
-            <MenuItem key={month} value={month}>
-              {month}
+          {months.map((month, idx) => (
+            <MenuItem key={idx} value={idx.toString()}>
+              {month.full}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <FormControl sx={{ minWidth: 120 }}>
+        <InputLabel id="year-select-label">Ano</InputLabel>
+        <Select
+          labelId="year-select-label"
+          id="year-select"
+          value={selectedYear.toString()}
+          label="Ano"
+          onChange={handleYearChange}
+        >
+          {years.map((year) => (
+            <MenuItem key={year} value={year.toString()}>
+              {year}
             </MenuItem>
           ))}
         </Select>

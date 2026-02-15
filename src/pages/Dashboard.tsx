@@ -44,11 +44,11 @@ const MONTHS = [
 ];
 
 export const Dashboard: React.FC = () => {
-  // Define o mês atual como valor inicial, compatível com o array months
+  // Define o mês e ano atual como valores iniciais
   const currentYear = new Date().getFullYear();
   const currentMonthIdx = new Date().getMonth();
-  const currentMonthLabel = `${MONTHS[currentMonthIdx].full} ${currentYear}`;
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthLabel);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthIdx);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -103,24 +103,20 @@ export const Dashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  const selectedMonthIdx = useMemo(() => {
-    const parts = selectedMonth.split(' ');
-    const monthName = parts[0];
-    return MONTHS.findIndex(m => m.full === monthName);
-  }, [selectedMonth]);
-
-  const selectedYear = useMemo(() => {
-    const parts = selectedMonth.split(' ');
-    return parseInt(parts[1]) || currentYear;
-  }, [selectedMonth, currentYear]);
+  // Extrai anos únicos das transações
+  const availableYears = useMemo(() => {
+    const years = new Set(transactions.map(t => t.date.getFullYear()));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const isMonth = t.date.getMonth() === selectedMonthIdx && t.date.getFullYear() === selectedYear;
+      const isMonth = t.date.getMonth() === selectedMonth;
+      const isYear = t.date.getFullYear() === selectedYear;
       const isCategory = selectedCategory ? t.category === selectedCategory : true;
-      return isMonth && isCategory;
+      return isMonth && isYear && isCategory;
     });
-  }, [transactions, selectedMonthIdx, selectedYear, selectedCategory]);
+  }, [transactions, selectedMonth, selectedYear, selectedCategory]);
 
   // Calcular métricas
   const metrics = useMemo(() => {
@@ -210,10 +206,13 @@ export const Dashboard: React.FC = () => {
       <FilterBar
         selectedMonth={selectedMonth}
         onMonthChange={setSelectedMonth}
+        selectedYear={selectedYear}
+        onYearChange={setSelectedYear}
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
         categories={categories}
-        months={MONTHS.map(m => `${m.full} ${currentYear}`)}
+        months={MONTHS}
+        years={availableYears.length > 0 ? availableYears : [currentYear]}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, mb: 3 }}>
