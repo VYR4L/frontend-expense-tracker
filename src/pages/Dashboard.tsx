@@ -104,16 +104,23 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const selectedMonthIdx = useMemo(() => {
-    const normalized = selectedMonth.replace(' 2025', '').trim();
-    return MONTHS.findIndex(m => m.full === normalized);
+    const parts = selectedMonth.split(' ');
+    const monthName = parts[0];
+    return MONTHS.findIndex(m => m.full === monthName);
   }, [selectedMonth]);
+
+  const selectedYear = useMemo(() => {
+    const parts = selectedMonth.split(' ');
+    return parseInt(parts[1]) || currentYear;
+  }, [selectedMonth, currentYear]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const isMonth = t.date.getMonth() === selectedMonthIdx && t.date.getFullYear() === 2025;
+      const isMonth = t.date.getMonth() === selectedMonthIdx && t.date.getFullYear() === selectedYear;
       const isCategory = selectedCategory ? t.category === selectedCategory : true;
       return isMonth && isCategory;
     });
-  }, [transactions, selectedMonthIdx, selectedCategory]);
+  }, [transactions, selectedMonthIdx, selectedYear, selectedCategory]);
 
   // Calcular métricas
   const metrics = useMemo(() => {
